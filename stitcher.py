@@ -190,29 +190,33 @@ class RGBDStitcher:
         vis.run()
         vis.destroy_window()
 
+    def load_default(self):
+        return self.load_dataset_two_folders(
+                './camera',
+                'rgb',
+                'depth')
 
-def load_default():
-    return load_dataset_two_folders('./camera',
-                                    'rgb', 'depth')
+    def load_dataset_two_folders(
+            self,
+            folder_path,
+            rgb_foldername,
+            depth_foldername):
+        rgb_images = []
+        depth_images = []
 
+        rgb_folder = os.path.join(folder_path, rgb_foldername)
+        for filename in sorted(os.listdir(rgb_folder)):
+            image_path = os.path.join(rgb_folder, filename)
+            rgb_image = cv2.imread(image_path)
+            rgb_images.append(rgb_image)
 
-def load_dataset_two_folders(folder_path, color_foldername, depth_foldername):
-    color_images = []
-    depth_images = []
+        depth_folder = os.path.join(folder_path, depth_foldername)
+        for filename in sorted(os.listdir(depth_folder)):
+            image_path = os.path.join(depth_folder, filename)
+            depth_image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+            depth_images.append(depth_image)
 
-    color_folder = os.path.join(folder_path, color_foldername)
-    for filename in sorted(os.listdir(color_folder)):
-        image_path = os.path.join(color_folder, filename)
-        color_image = cv2.imread(image_path)
-        color_images.append(color_image)
-
-    depth_folder = os.path.join(folder_path, depth_foldername)
-    for filename in sorted(os.listdir(depth_folder)):
-        image_path = os.path.join(depth_folder, filename)
-        depth_image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
-        depth_images.append(depth_image)
-
-    return color_images, depth_images
+        return rgb_images, depth_images
 
 
 # Example usage

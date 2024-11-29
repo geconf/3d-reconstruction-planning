@@ -6,6 +6,8 @@ import time
 import pybullet as p
 import pybullet_data
 import bullet_camera
+import stitcher
+import open3d as o3d
 
 import sys
 sys.path.append(os.path.abspath('./Expansion-GRR'))
@@ -105,6 +107,22 @@ def main():
 
     input("Finish")
     p.disconnect()
+
+    # Initialize camera intrinsic parameters (example for Intel RealSense D435)
+    intrinsic = o3d.camera.PinholeCameraIntrinsic(
+        width=640, height=480,
+        fx=615.6707153320312, fy=615.962158203125,
+        cx=326.0557861328125, cy=240.55592346191406)
+
+    rgbd_stitcher = stitcher.RGBDStitcher(intrinsic)
+
+    rgb_images, depth_images = rgbd_stitcher.load_default()
+
+    # Perform stitching
+    combined_cloud = rgbd_stitcher.stitch_sequence(rgb_images, depth_images)
+
+    # Visualize result
+    o3d.visualization.draw_geometries([combined_cloud])
 
 
 def grr_plan(grr, workspace_path):
