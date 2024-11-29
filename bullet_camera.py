@@ -38,8 +38,9 @@ class Camera:
         self.rgb_path = output_path / 'rgb'
         self.rgb_path.mkdir(parents=True)
 
-        self.depth_path = output_path / 'depth'
-        self.depth_path.mkdir()
+        if self.has_depth:
+            self.depth_path = output_path / 'depth'
+            self.depth_path.mkdir()
 
         self.image_count = 0
         self.image_id_width = 4
