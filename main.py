@@ -1,5 +1,3 @@
-"""A demo of the Bullet API."""
-
 import os
 import numpy as np
 import time
@@ -108,6 +106,7 @@ def main():
     input("Finish")
     p.disconnect()
 
+    # Stitching
     # Initialize camera intrinsic parameters (example for Intel RealSense D435)
     intrinsic = o3d.camera.PinholeCameraIntrinsic(
         width=640, height=480,
