@@ -19,7 +19,8 @@ def main():
     print(dir)
     # urdf = dir + "/data/robots/ur10_bullet.urdf"
     urdf = dir + "/data/robots/ur10.urdf"
-    grr = load_grr(urdf, "ur10", "rot_variable_yaw")
+    # grr = load_grr(urdf, "ur10", "rot_variable_yaw")
+    grr = load_grr("ur10", "rot_variable_yaw")
 
     # TODO for the users
     # Define workspace path in the robot base frame
