@@ -64,7 +64,15 @@ def main():
                useFixedBase=True)
 
     # Initialize camera
-    d435 = bullet_camera.Camera(640, 480, physicsClientId=sim)
+    d435_rgb_link = 15  # d435 color frame link
+    d435 = bullet_camera.Camera(
+            width=640,
+            height=480,
+            robot_id=robot_id,
+            rgb_link_id=d435_rgb_link,
+            physicsClientId=sim,
+            has_depth=True)
+    d435.takePicture(banana_pos)
 
     # Init
     for i, joint_id in enumerate([0, 1, 2, 3, 4, 5]):
@@ -93,14 +101,7 @@ def main():
             time.sleep(1 / 240.0)
 
     # Take picture
-    d435_index = 13
-    d435_state = p.getLinkState(
-            robot_id,
-            d435_index,
-            computeForwardKinematics=True,
-            physicsClientId=sim)
-    d435_world_position = d435_state[0]
-    d435.takePicture(d435_world_position, banana_pos)
+    d435.takePicture(banana_pos)
 
     input("Finish")
     p.disconnect()
@@ -123,15 +124,6 @@ def grr_plan(grr, workspace_path):
         if conf is None:
             print("\nInvalid configuration found\n")
             return config_path
-
-    # TODO 1
-    # Collision checking with obstacles is not implimented
-
-    # TODO 2
-    # Continuity checking is not performed,
-    # although this should be guranteed by GRR.
-    # One corner case is that base joint believes 0 and 2pi are the same,
-    # but the physical robot will not think so.
 
     return config_path
 
