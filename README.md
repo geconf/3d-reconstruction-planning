@@ -40,6 +40,7 @@ Relevant works:
 
 ```shell
 git clone https://github.com/geconf/planning-3d-reconstruction
+cd ./planning-3d-reconstruction
 ```
 
 * Create and load the conda environment:
