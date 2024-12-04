@@ -63,3 +63,6 @@ python redundancy.py <robot> <rotation_type> # e.g. ur10 rot_variable_yaw
 cd ..
 python main.py
 ```
+
+---
+RBE 550 - Motion Planning 2024 taught by Professor Constantinos Chamzas at Worcester Polytechnic Institute Robotics Engineering Department
