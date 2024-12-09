@@ -207,15 +207,14 @@ def main():
             physicsClientId=physics_client
             )
 
-    img_total = 90
+    img_total = 12
     img_count = 0
 
     t0 = time.time()
-    slowdown_factor = 3.0
+    slowdown_factor = 1.0
 
     input("Execute?")
 
-    d435.takePicture(banana_pos)
     for waypoint in traj:
         if waypoint[1] is not None:
             for i, joint_id in enumerate([0, 1, 2, 3, 4, 5]):
@@ -234,7 +233,6 @@ def main():
                 p.stepSimulation(physicsClientId=physics_client)
                 time.sleep(1 / 240.0)
 
-    d435.takePicture(banana_pos)
     input("Finish")
     p.disconnect()
 
