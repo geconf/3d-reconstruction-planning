@@ -49,7 +49,7 @@ def main():
     # Need to load these after the robot as joint_ids are 0-based
     p.setAdditionalSearchPath(pybullet_data.getDataPath())  # optionally
     # p.loadURDF("plane.urdf", physicsClientId=physics_client)
-    build_house()
+    build_floor()
     p.loadURDF(banana_urdf,
                basePosition=banana_pos,
                baseOrientation=banana_orientation,
@@ -207,14 +207,15 @@ def main():
             physicsClientId=physics_client
             )
 
-    img_total = 8
+    img_total = 90
     img_count = 0
 
     t0 = time.time()
-    slowdown_factor = 1.0
+    slowdown_factor = 3.0
 
     input("Execute?")
 
+    d435.takePicture(banana_pos)
     for waypoint in traj:
         if waypoint[1] is not None:
             for i, joint_id in enumerate([0, 1, 2, 3, 4, 5]):
@@ -233,6 +234,7 @@ def main():
                 p.stepSimulation(physicsClientId=physics_client)
                 time.sleep(1 / 240.0)
 
+    d435.takePicture(banana_pos)
     input("Finish")
     p.disconnect()
 
@@ -307,58 +309,8 @@ def grr_plan(grr, workspace_path):
     return config_path
 
 
-def build_house():
-    # Define wall dimensions
-    wall_length = 10  # Length of walls
-    wall_height = 5   # Height of walls
-    wall_thickness = 0.5  # Thickness of the walls
-
-    # Define the colors for each wall
-    wall_colors = [
-        [1, 0, 0, 1],  # Red for front wall
-        [0, 1, 0, 1],  # Green for back wall
-        [0, 0, 1, 1],  # Blue for right wall
-        [0.5, 0, 0.5, 1]  # Purple
-    ]
-
-    # Positioning the walls (front, back, left, and right)
-    wall_positions = [
-        [0, wall_length / 2, wall_height / 2],  # Front wall
-        [0, -wall_length / 2, wall_height / 2], # Back wall
-        [wall_length / 2, 0, wall_height / 2],  # Right wall
-        [-wall_length / 2, 0, wall_height / 2], # Left wall
-    ]
-
-    # Rotation for the right and left walls (90 degrees around the Y-axis)
-    wall_orientations = [
-        p.getQuaternionFromEuler([0, 0, 0]),  # Front wall (no rotation)
-        p.getQuaternionFromEuler([0, 3.14159, 0]),  # Back wall (no rotation)
-        p.getQuaternionFromEuler([0, 0, 1.5708]),  # Right wall (90 degrees rotation)
-        p.getQuaternionFromEuler([0, 0, -1.5708]), # Left wall (-90 degrees rotation)
-    ]
-
-    # Load the walls (using cubes)
-    wall_ids = []
-    for i, position in enumerate(wall_positions):
-        # Create the wall collision shape (box)
-        wall_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=[wall_length / 2, wall_thickness / 2, wall_height / 2])
-        # Create the wall body and set the position
-        wall_body = p.createMultiBody(baseCollisionShapeIndex=wall_id, basePosition=position, baseOrientation=wall_orientations[i])
-        # Change the color of the wall (each wall has a different color)
-        p.changeVisualShape(wall_body, -1, rgbaColor=wall_colors[i])
-        wall_ids.append(wall_body)
-
-    # Create the roof (another box)
-    roof_height = 0.5  # Thickness of roof
-    roof_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=[wall_length / 2, wall_length / 2, roof_height / 2])
-    roof_position = [0, 0, wall_height + roof_height / 2]
-    roof_body = p.createMultiBody(baseCollisionShapeIndex=roof_id, basePosition=roof_position)
-    p.changeVisualShape(roof_body, -1, rgbaColor=[0.5, 0.5, 0.5, 1])  # Gray color for the roof
-
-    build_floor(wall_length)
-
-
-def build_floor(wall_length):
+def build_floor():
+    wall_length = 10
     # Create the floor (ground)
     floor_height = 0.1
     floor_id = p.createCollisionShape(p.GEOM_BOX, halfExtents=[wall_length / 2, wall_length / 2, floor_height / 2])

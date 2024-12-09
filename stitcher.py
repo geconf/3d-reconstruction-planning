@@ -16,6 +16,7 @@ class RGBDStitcher:
         self.intrinsic = intrinsic
         self.voxel_size = 0.02  # Default voxel size for downsampling
         self.distance_threshold = 0.05  # Default distance threshold for registration
+        self.optimization_modulus = 2
 
     def create_point_cloud_from_rgbd(
             self,
@@ -135,7 +136,7 @@ class RGBDStitcher:
             combined_cloud += current_cloud
 
             # Optional: Cleanup and optimization
-            if i % 5 == 0:  # Every 5 frames
+            if i % self.optimization_modulus == 0:  # Every N frames
                 # Check the type and size of combined cloud
                 print(f"Combined cloud type: {type(combined_cloud)}")
                 print(f"Number of points: {len(combined_cloud.points)}")
@@ -150,16 +151,17 @@ class RGBDStitcher:
                 combined_cloud = combined_cloud.voxel_down_sample(self.voxel_size)
 
                 if len(combined_cloud.points) == 0:
-                    print("Warning: Combined cloud is empty after downsampling.")
+                    print("Warning: Combined cloud empty after downsampling.")
 
                 # Optionally: Remove noise
-                if len(combined_cloud.points) > 1000:  # Adjust the threshold as needed
-                    combined_cloud, _ = combined_cloud.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+                if len(combined_cloud.points) > 1000:
+                    combined_cloud, _ = combined_cloud.remove_statistical_outlier(
+                            nb_neighbors=20, std_ratio=2.0)
                 else:
-                    print("Skipping outlier removal due to small point cloud size.")
+                     print("Skipping outlier removal due to small point cloud size.")
 
                 if len(combined_cloud.points) == 0:
-                    print("Warning: Combined cloud is empty after removing outliers.")
+                    print("Warning: Combined cloud empty after removing outliers.")
 
         return combined_cloud
 
@@ -222,6 +224,11 @@ class RGBDStitcher:
             image_path = os.path.join(depth_folder, filename)
             depth_image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
             depth_images.append(depth_image)
+
+        if len(rgb_images) % self.optimization_modulus != 0:
+            for i in range(len(rgb_images) % self.optimization_modulus):
+                rgb_images.pop()
+                depth_images.pop()
 
         return rgb_images, depth_images
 
