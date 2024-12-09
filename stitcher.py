@@ -110,37 +110,25 @@ class RGBDStitcher:
 
         return result_icp.transformation, result_icp.fitness
 
-    def stitch_sequence(
-            self,
-            color_images: List[np.ndarray],
-            depth_images: List[np.ndarray]) -> o3d.geometry.PointCloud:
+    def stitch_sequence(self, color_images: List[np.ndarray], depth_images: List[np.ndarray]) -> o3d.geometry.PointCloud:
         """
         Stitch a sequence of RGBD images into a single point cloud
-
-        Args:
-            color_images: List of RGB images
-            depth_images: List of depth images
-
-        Returns:
-            Combined point cloud
         """
         if len(color_images) != len(depth_images):
             raise ValueError("Number of color and depth images must match")
 
-        # Create first point cloud
-        combined_cloud = self.create_point_cloud_from_rgbd(color_images[0],
-                                                           depth_images[0])
+        # Create the first point cloud
+        combined_cloud = self.create_point_cloud_from_rgbd(color_images[0], depth_images[0])
 
         global_transform = np.identity(4)
 
         # Process each subsequent image
         for i in range(1, len(color_images)):
-            # Create point cloud from current RGBD pair
-            current_cloud = self.create_point_cloud_from_rgbd(
-                color_images[i], depth_images[i])
-            # Register current cloud to combined cloud
-            transform, fitness = self.register_point_clouds(
-                current_cloud, combined_cloud)
+            # Create point cloud from the current RGBD pair
+            current_cloud = self.create_point_cloud_from_rgbd(color_images[i], depth_images[i])
+
+            # Register the current cloud to the combined cloud
+            transform, fitness = self.register_point_clouds(current_cloud, combined_cloud)
 
             # Transform and combine point clouds
             current_cloud.transform(transform)
@@ -148,11 +136,30 @@ class RGBDStitcher:
 
             # Optional: Cleanup and optimization
             if i % 5 == 0:  # Every 5 frames
-                # Remove redundant points
+                # Check the type and size of combined cloud
+                print(f"Combined cloud type: {type(combined_cloud)}")
+                print(f"Number of points: {len(combined_cloud.points)}")
+
+                # Remove invalid points before downsampling
+                points = np.asarray(combined_cloud.points)
+                valid_points = points[~np.isnan(points).any(axis=1)]
+                valid_cloud = o3d.geometry.PointCloud()
+                valid_cloud.points = o3d.utility.Vector3dVector(valid_points)
+
+                # Now apply voxel downsampling
                 combined_cloud = combined_cloud.voxel_down_sample(self.voxel_size)
-                # Remove noise
-                combined_cloud, _ = combined_cloud.remove_statistical_outlier(
-                        nb_neighbors=20, std_ratio=2.0)
+
+                if len(combined_cloud.points) == 0:
+                    print("Warning: Combined cloud is empty after downsampling.")
+
+                # Optionally: Remove noise
+                if len(combined_cloud.points) > 1000:  # Adjust the threshold as needed
+                    combined_cloud, _ = combined_cloud.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+                else:
+                    print("Skipping outlier removal due to small point cloud size.")
+
+                if len(combined_cloud.points) == 0:
+                    print("Warning: Combined cloud is empty after removing outliers.")
 
         return combined_cloud
 
