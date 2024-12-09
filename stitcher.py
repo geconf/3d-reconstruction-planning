@@ -241,7 +241,7 @@ def main():
     #     color_images.append(color)
     #     depth_images.append(depth)
 
-    color_images, depth_images = load_default()
+    color_images, depth_images = stitcher.load_default()
 
     # Perform stitching
     combined_cloud = stitcher.stitch_sequence(color_images, depth_images)
