@@ -207,13 +207,13 @@ def main():
             physicsClientId=physics_client
             )
 
-    img_total = 12
-    img_count = 0
-
-    t0 = time.time()
-    slowdown_factor = 1.0
 
     input("Execute?")
+
+    img_total = 12
+    img_count = 0
+    t0 = time.time()
+    slowdown_factor = 1.0
 
     for waypoint in traj:
         if waypoint[1] is not None:

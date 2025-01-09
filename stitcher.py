@@ -233,6 +233,31 @@ class RGBDStitcher:
         return rgb_images, depth_images
 
 
+    def load_dataset_realsense(
+            self,
+            rgb_folder,
+            depth_folder):
+        rgb_images = []
+        depth_images = []
+
+        for filename in sorted(os.listdir(rgb_folder)):
+            image_path = os.path.join(rgb_folder, filename)
+            rgb_image = cv2.imread(image_path)
+            rgb_images.append(rgb_image)
+
+        for filename in sorted(os.listdir(depth_folder)):
+            image_path = os.path.join(depth_folder, filename)
+            depth_image = np.load(image_path)
+            depth_images.append(depth_image)
+
+        if len(rgb_images) % self.optimization_modulus != 0:
+            for i in range(len(rgb_images) % self.optimization_modulus):
+                rgb_images.pop()
+                depth_images.pop()
+
+        return rgb_images, depth_images
+
+
 # Example usage
 def main():
     # Initialize camera intrinsic parameters (example for Intel RealSense D435)
