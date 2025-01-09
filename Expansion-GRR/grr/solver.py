@@ -142,6 +142,7 @@ class RedundancySolver:
                 continue_expansion = True
 
                 # Check connectivity
+                #print("graph check 1: ",self.graph.nodes[i])
                 self.check_neighbor_connection(i)
 
             if not continue_expansion:
@@ -169,17 +170,22 @@ class RedundancySolver:
             # Get the corresponding workspace point
             positions, rotations = self.robot.solve_fk(config, [-1])
             point = positions[0]
-            if self.robot.rotation == "variable":
+            #print("Init From Conf1: ",point)
+            #if self.robot.rotation == "variable":
+            if self.robot.rotation == "variable" or self.robot.rotation == "free":
                 point = np.concatenate([positions[0], rotations[0]])
 
             # Get the closest start point in the workspace graph
+            point = np.concatenate([positions[0], rotations[0]])
+            #print("Init From Conf2: ",point)
             start_node = self.workspace.get_workspace_neighbors(
                 point, self.workspace.nn, k=1
             )[0]
 
             # Acquire candidates
             start_point = self.graph.nodes[start_node]["point"]
-            start_config = self.robot.solve_ik(start_point, config)
+            print("Start Point: ",start_point)
+            start_config = self.robot.solve_ik(start_point, config, max_iters=100, tolerance=1e-3)
 
             # needs to be valid
             if start_config is None:
@@ -215,7 +221,7 @@ class RedundancySolver:
             100 * valid_count / len(configs),
             "%",
         )
-
+        print("Start Neighbours: ",start_neighbors)
         return start_neighbors
 
     def project_neighbors(self, i, k):
@@ -301,6 +307,9 @@ class RedundancySolver:
 
         Make this a static method so that it can be used in multiprocessing
         """
+        
+        #print("point 1 check: ",point1)
+        #print("point 2 check: ",point2)
         scale = np.sqrt(robot.num_joints)
         # return RedundancySolver.is_continuous_bisect(
         #     robot, q1, q2, point1, point2, scale, scale * 5e-2

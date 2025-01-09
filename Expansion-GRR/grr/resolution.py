@@ -61,7 +61,7 @@ class RedundancyResolution:
         self.workspace.load_workspace_graph(graph_path, nn_path)
 
     def sample_workspace(
-        self, n_pos_points, n_rot_points, sampling_method="random"
+        self, objPos, n_pos_points, n_rot_points, sampling_method="random"
     ):
         """Sample n_points workspace points in the robot workspace
 
@@ -70,7 +70,7 @@ class RedundancyResolution:
             sampling_method: method to use for sampling
         """
         self.workspace.sample_workspace(
-            n_pos_points, n_rot_points, sampling_method
+            objPos, n_pos_points, n_rot_points, sampling_method
         )
 
     def visualize_workspace_graph(self):
@@ -236,6 +236,7 @@ class RedundancyResolution:
         nearest_node_only=False,
         regular_ik=False,
         none_on_fail=False,
+        TrackArray=[],
     ):
         """Solve redundancy for a given point in the workspace
         Uses inverse distance weighted interpolation at the workspace nodes to
@@ -253,20 +254,31 @@ class RedundancyResolution:
 
         def solve_with_guess(guess):
             """A helper function to solve IK with a guess configuration"""
+            #print("Solve With Guess Called")
+
             return self.robot.solve_ik(point, guess, none_on_fail=none_on_fail)
+
+        point = np.array(point)
 
         if regular_ik:
             return solve_with_guess(curr_config)
 
+        # Normalize the rotation part if the point includes it
+        if len(point) > 3:
+            point[3:] = point[3:] / np.linalg.norm(point[3:])
+
         neighbors = self.workspace.get_workspace_neighbors(
-            point, self.nn, k=self.workspace.interpolate_num_neighbors
+            point, self.nn, k=1*self.workspace.interpolate_num_neighbors
         )
         neighbors = [
             n for n in neighbors if self.graph.nodes[n]["config"] is not None
         ]
+        #print(neighbors,"\n")
 
         # If no neighbor is found, simply use current configuration
         if len(neighbors) == 0:
+            print("No Neighbours Found For Point, Solving With Guess")
+            TrackArray.append(0)
             return solve_with_guess(curr_config)
 
         # If only get solutions from the nearest graph node
@@ -275,13 +287,84 @@ class RedundancyResolution:
             # return solve_with_guess(self.graph.nodes[neighbors[0]]["config"])
 
         # If it falls on a node, use that node's configuration
-        if (
-            self.robot.workspace_distance(
-                point, self.graph.nodes[neighbors[0]]["point"]
-            )
-            < 1e-3
-        ):
-            return solve_with_guess(self.graph.nodes[neighbors[0]]["config"])
+        
+        # Checking for joint continuity, penalizing nodes that are FAR in joint space
+        
+        
+        #Trying something new 
+        n_point_arr = []
+        n_config_arr = []
+        n_condis_arr = []
+        print("Neighbors Length: ", len(neighbors))
+        for neighbor in neighbors:
+            neighbor_point = self.graph.nodes[neighbor]["point"]
+            neighbor_config = self.graph.nodes[neighbor]["config"]
+            
+            if(curr_config is not None):
+                neighbor_condis = self.robot.distance(curr_config, neighbor_config)
+            else:
+                neighbor_condis = 0
+            
+            n_point_arr.append(neighbor_point)
+            n_config_arr.append(neighbor_config)
+            n_condis_arr.append(neighbor_condis)
+            
+        #TrackArray.append(6)            
+        if(curr_config is None):
+            print(len(n_point_arr))
+            for i in range(len(n_point_arr)):
+                if(self.robot.workspace_distance(point, n_point_arr[i]) < 1e-3):
+                    TrackArray.append(0)
+                    return solve_with_guess(n_config_arr[i])
+        else:
+            min_index = n_condis_arr.index(min(n_condis_arr))
+            print("Min Config Dist Among N: ", min(n_condis_arr))
+            TrackArray.append(min(n_condis_arr))
+            #if(min(n_condis_arr)<1):
+            #    #print(n_config_arr[min_index])
+            #    return solve_with_guess(n_config_arr[min_index])
+            #    
+            #else:
+            #    return solve_with_guess([curr_config[0]+0.01, curr_config[1], curr_config[2], curr_config[3], curr_config[4], curr_config[5]])
+         
+            return solve_with_guess(n_config_arr[min_index])           
+        
+        workspace_tolerance = 1e-3
+        joint_tolerance = 1e-2
+        
+        for neighbor in neighbors:
+            neighbor_point = self.graph.nodes[neighbor]["point"]
+            neighbor_config = self.graph.nodes[neighbor]["config"]
+            
+            if(curr_config is not None):
+                diffSum = sum(abs(neighbor_config[i] - curr_config[i]) for i in range(len(curr_config)))
+            else:
+                diffSum = 0
+
+            if (
+                self.robot.workspace_distance(point, neighbor_point) < workspace_tolerance
+                and diffSum < joint_tolerance
+            ):
+                print("if passed")
+                print("Point: ",point)
+                print("Chosen Neighbor: ",neighbor_point)
+                TrackArray.append(1)
+                return solve_with_guess(neighbor_config)  
+            
+        print("No Valid Neighbor Found, Proceeding...") 
+        
+        #if (
+        #    self.robot.workspace_distance(
+        #        point, self.graph.nodes[neighbors[0]]["point"]
+        #    )
+        #    < 1e-3
+        #):
+        #    print("if passed")
+        #    print("Point: ",point)
+        #    print("First neighbor: ",self.graph.nodes[neighbors[0]]["point"])
+        #    #return solve_with_guess(curr_config)
+        #    TrackArray.append(1)
+        #    return solve_with_guess(self.graph.nodes[neighbors[0]]["config"])
 
         # Get a subgraph of the neighbors
         subgraph = self.graph.subgraph(neighbors)
@@ -294,17 +377,59 @@ class RedundancyResolution:
 
         q_neighbors = [self.graph.nodes[j]["config"] for j in component]
         p_neighbors = [self.graph.nodes[j]["point"] for j in component]
+        #print(p_neighbors)
         distances = np.array(
             [self.robot.workspace_distance(point, p) for p in p_neighbors]
         )
+        
+        graph_distances = [
+            nx.shortest_path_length(self.graph, source=neighbors[0], target=n)
+            for n in component
+        ]
+        
+        if(curr_config is not None):
+            joint_distances = np.array(
+    [self.robot.distance(curr_config, q) for q in q_neighbors]
+)    
+        #else:
+        #    joint_distances = 
+        else:
+            joint_distances = np.zeros(len(component))
+        
+        
+        
+        #Experimenting with weights assigned via graph distances
 
         # Compute weights
         max_dist = np.max(distances)
-        weights = [(max_dist / d) ** 2 for d in distances]
+        workspace_weights = [(max_dist / d) ** 2 for d in distances]
+        
+        graph_weights = graph_distances / np.max(graph_distances)
+        
+        if(curr_config is not None):
+            joint_weights = joint_distances / np.max(joint_distances)
+        else:
+            joint_weights = np.zeros(len(component))
+        
+        
+        # Combine weights with a penalty factor (alpha)
+        alpha = 0  # Adjust this to balance workspace and graph distances
+        beta = 1
+        combined_weights = [
+            (1 - alpha) * workspace_weight + alpha * graph_weight + beta * joint_weight
+            for workspace_weight, graph_weight, joint_weight in zip(workspace_weights, graph_weights, joint_weights)
+        ]
+
+        # Convert weights to inverse-square for smoother interpolation
+        weights = [(1 / (w + 1e-6)) ** 2 for w in combined_weights]
+
+        #print(q_neighbors)
+        #print(weights)
 
         # Compute and project the average configuration
         q_avg = self.robot.average(q_neighbors, weights)
-
+        #print(q_avg)
+        TrackArray.append(2)
         return solve_with_guess(q_avg)
 
     def plan(self, start_point, goal_point, interpolation=8):

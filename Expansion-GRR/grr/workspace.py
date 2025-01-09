@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 
 from .utils import se3_metric
 from .utils import get_staggered_grid, get_so3_grid
-from .utils import quat_to_euler, rotvec_to_quat, quat_to_rotvec
-
+from .utils import quat_to_euler, rotvec_to_quat, quat_to_rotvec, euler_to_quat
+from scipy.spatial.transform import Rotation as R
 
 class RedundancyWorkspace:
     """A class to define the global redundancy resolution workspace
@@ -37,7 +37,10 @@ class RedundancyWorkspace:
         """
         self.robot = robot
         self.pos_dims = len([1 for (a, b) in self.robot.domain if a != b])
-        self.rot_dims = sum(self.robot.rot_domain)
+        #print(self.robot.rot_domain)
+        #self.rot_dims = sum(self.robot.rot_domain)
+        self.rot_dims = 3;
+        #print(self.rot_dims)
         self.interpolate_num_neighbors = self.get_interpolate_num_neighbors()
 
         self.graph = nx.Graph()  # workspace graph
@@ -68,7 +71,8 @@ class RedundancyWorkspace:
         print("Building nearest neighbor search structure")
         # By default, when only dealing with position,
         # use BallTree for searching
-        if self.robot.rotation != "variable":
+        print(self.robot.rotation)
+        if self.robot.rotation != "variable" and self.robot.rotation != "free":
             print("Building BallTree")
             nn = BallTree(
                 np.array(
@@ -98,7 +102,7 @@ class RedundancyWorkspace:
         return nn
 
     def sample_workspace(
-        self, n_pos_points, n_rot_points, sampling_method="grid"
+        self, objPos, n_pos_points, n_rot_points, sampling_method="grid"
     ):
         """Sample n_points workspace points in the robot workspace
 
@@ -107,8 +111,11 @@ class RedundancyWorkspace:
             sampling_method: method to use for sampling
         """
         # Logging
+        
+        n_rot_points = 1
         print("\nSample workspace in", self.pos_dims, "position dimension")
         print("and", self.rot_dims, "rotation dimensions")
+        print("\nSampling workspace with object at: ", objPos)
 
         print("Sample with method:", sampling_method)
         print("Sample", n_pos_points, "position points")
@@ -127,15 +134,134 @@ class RedundancyWorkspace:
         # combination of position and rotation, and the total
         # number of points is (n_pos_points * n_rot_points)
         if sampling_method == "random":
+            n_rot_points = 1
+            n_pos_points = 5000
             n_total = n_pos_points * n_rot_points
-
+            #n_total = 1000
+            print("n_total= ",n_total)
             # Sample
             print("Sampling points from sampling")
-            for i in tqdm(range(n_total)):
-                point = self.robot.workspace_sample()
-                self.add_workspace_node(point)
+            ObjectPoint = [objPos[0], objPos[1], objPos[2]]
+            circRad = 0.4
+            
+            circRad = 0.25
+            circRad = 0.3
+            
+            circRadX = 0.6
+            circRadA = 1.2
+            circHeight = 0.15
+            epsilon = 0.00001
+            
+            circHeight = 0.3
+            
+            #disc_axis = int(n_pos_points**(1/3))
+            #xarr_grid = np.linspace(-1, 1, disc_axis)
+            #yarr_grid = np.linspace(-1, 1, disc_axis)
+            #zarr_grid = np.linspace(0, 1, disc_axis)
+            
+            #xarr_grid = np.linspace(-0.6, 0.6, int((n_pos_points/1)**(1/3)))
+            #yarr_grid = np.linspace(0.3, 0.5, int((n_pos_points/1)**(1/3)))
+            #zarr_grid = np.linspace(0.4, 0.8, int((n_pos_points/1)**(1/3)))
+            
+            #yawArr = np.linspace(0, np.pi/8, n_rot_points)
+            
+            #for i in tqdm(range(len(xarr_grid))):
+            #    for j in tqdm(range(len(yarr_grid))):
+            #        for k in tqdm(range(len(zarr_grid))):
+            #            x_curr = xarr_grid[i]
+            #            y_curr = yarr_grid[i]
+            #            z_curr = zarr_grid[i]
+            #            vVec = [ObjectPoint[0]-x_curr, ObjectPoint[1]-y_curr, ObjectPoint[2]-z_curr]
+            #            vNorm = np.sqrt(vVec[0]**2 + vVec[1]**2 + vVec[2]**2)
+            #            vVecN = [vVec[0]/vNorm, vVec[1]/vNorm, vVec[2]/vNorm]
+            #    
+            #            z_axis = vVecN
+            #            arbit_vec = np.array([1,0,0]) if not np.allclose(z_axis, [1,0,0]) else np.array([0,1,0])     
+            #            x_axis = np.cross(arbit_vec, z_axis)
+            #            x_axis /= np.linalg.norm(x_axis)
+            #          
+            #            y_axis = np.cross(z_axis, x_axis)
+            #            rotation_matrix = np.column_stack((x_axis, y_axis, z_axis))
+            #            rotation_matrix = rotation_matrix.T
+            #      
+            #            r = R.from_matrix(rotation_matrix)
+            #        
+            #            euler_calc = r.as_euler('ZYX')
+            #    
+            #    
+            #            for j in range(n_rot_points):
+            #    
+            #                new_euler = [yawArr[j], euler_calc[1], euler_calc[2]]
+            #                new_quat = euler_to_quat(new_euler, seq='ZYX')
+            #    
+            #                point = [x_curr, y_curr, z_curr, new_quat[0], new_quat[1], new_quat[2], new_quat[3]]
+            #                self.add_workspace_node(point)
+            
+            y_const = ObjectPoint[1]
+            y_const = ObjectPoint[1]-0.3
+            z_const = ObjectPoint[2] + circHeight
+            x_arr = np.linspace(ObjectPoint[0]-circRad, ObjectPoint[0]+circRad, n_pos_points)
+            y_arr = np.linspace(y_const, y_const, n_pos_points)
+            z_arr = np.linspace(z_const, z_const, n_pos_points)
+            
+            circArr = np.linspace(0,np.pi,n_pos_points)
+            circArrX = np.linspace(np.pi/2 - np.pi/4, np.pi/2 + np.pi/4, n_pos_points)
+            circArrA = np.linspace(0,np.pi/6, n_pos_points)
+            
+            x_arr = ObjectPoint[0] + circRad*np.cos(circArr)
+            z_arr = circHeight + ObjectPoint[2] + circRad*np.sin(circArr)
+            y_arr = y_arr
+            
+            z_arr = circHeight + ObjectPoint[2] + circRad*np.sin(circArr)
+            #z_arr = ObjectPoint[2] + circRad*np.sin(circArr)
+            x_arr = ObjectPoint[0] + circRad*np.cos(circArr)
+            
+            #z_arr = circHeight + ObjectPoint[2] + circRadA*np.sin(circArrA)
+            #x_arr = ObjectPoint[0] + circRadA*np.cos(circArrA)
+            
+            x_arr = ObjectPoint[0] - (0.15)*(np.cos(np.pi/4)) + circRad*np.cos(circArr)*np.cos(3*np.pi/4)
+            y_arr = ObjectPoint[1] - (0.15)*(np.cos(np.pi/4)) + circRad*np.cos(circArr)*np.sin(3*np.pi/4)
+            z_arr = circHeight + ObjectPoint[2] + circRad*np.sin(circArr)
+            
+            yawArr = np.linspace(0,2*np.pi,n_rot_points)
+            yawArr = np.linspace(0, np.pi/8, n_rot_points)
+                
+            for i in tqdm(range(n_pos_points)):
+                #point = self.robot.workspace_sample(objPos)
+                
+                #Hardcoding in the path for a circle
+                x_curr = x_arr[i]
+                y_curr = y_arr[i]
+                z_curr = z_arr[i]
+                
+                vVec = [ObjectPoint[0]-x_curr, ObjectPoint[1]-y_curr, ObjectPoint[2]-z_curr]
+                vNorm = np.sqrt(vVec[0]**2 + vVec[1]**2 + vVec[2]**2)
+                vVecN = [vVec[0]/vNorm, vVec[1]/vNorm, vVec[2]/vNorm]
+                
+                z_axis = vVecN
+                arbit_vec = np.array([1,0,0]) if not np.allclose(z_axis, [1,0,0]) else np.array([0,1,0])     
+                x_axis = np.cross(arbit_vec, z_axis)
+                x_axis /= np.linalg.norm(x_axis)
+        
+                y_axis = np.cross(z_axis, x_axis)
+                rotation_matrix = np.column_stack((x_axis, y_axis, z_axis))
+                rotation_matrix = rotation_matrix.T
+        
+                r = R.from_matrix(rotation_matrix)
+                    
+                euler_calc = r.as_euler('ZYX')
+                
+                
+                for j in range(n_rot_points):
+                
+                    new_euler = [yawArr[j], euler_calc[1], euler_calc[2]]
+                    new_quat = euler_to_quat(new_euler, seq='ZYX')
+                
+                    point = [x_curr, y_curr, z_curr, new_quat[0], new_quat[1], new_quat[2], new_quat[3]]
+                    self.add_workspace_node(point)
 
             # Build tree for searching
+            print(self.graph)
             self.nn = self.build_nn(self.graph)
 
             # Connect
@@ -145,9 +271,16 @@ class RedundancyWorkspace:
             k = int(
                 constant * (1 + 1.0 / (self.pos_dims)) * np.log(n_pos_points)
             )
+            print(self.rot_dims)
             if self.rot_dims > 0:
                 k *= self.rot_dims * 2
+            
+            #k = 2
+            k = n_rot_points*3 - 1
             for i, node in tqdm(self.graph.nodes(data=True)):
+                #print(node["point"],"\n")
+                #print(self.nn,"\n")
+                
                 neighbors = self.get_workspace_neighbors(
                     node["point"], self.nn, k=k + 1
                 )
@@ -166,6 +299,8 @@ class RedundancyWorkspace:
             # Get points and edges from a staggered grid
             # points are the workspace coordinates and edges are in index form
             points, edges = get_staggered_grid(n_pos_points, self.robot.domain)
+            
+            
 
             # If there is no need to sample in rotation,
             # directly add points to graph and connect position neighbors
@@ -191,7 +326,8 @@ class RedundancyWorkspace:
                 n_rot_neighbors = self.rot_dims * 2
                 rotation_points, rotation_eges = get_so3_grid(
                     n_rot_points,
-                    domain=self.robot.rot_domain,
+                    self.robot.rot_domain,
+                    quat_to_euler(self.robot.fixed_rotation),
                     num_neighbors=n_rot_neighbors,
                 )
 
@@ -247,6 +383,8 @@ class RedundancyWorkspace:
         """
         node_i = self.graph.number_of_nodes()
         self.graph.add_node(node_i, point=point)
+        #print(f"Adding node to graph: {point}")
+
 
     def add_workspace_edge(self, i, j):
         """Add an edge between two workspace nodes
@@ -282,24 +420,31 @@ class RedundancyWorkspace:
             neighbors: indices of the nearest neighbors
         """
         point = np.array(point)
+        #point = np.array(point[0:3])
 
         # Nearest neighbors
         # only indices are needed
 
         # If it is a BallTree
+        #print(isinstance(nn, BallTree))
         if isinstance(nn, BallTree):
+            #print("BT Neighbors")
             if radius is not None:
                 return nn.query_radius(
                     [point], radius, return_distance=True, sort_results=True
                 )[0][0]
 
             else:
+                #print([point],"\n")
+                #print(k,"\n")
+                
                 return nn.query(
                     [point], k, return_distance=True, sort_results=True
                 )[1][0]
 
         # If it is a NNDescent
         elif isinstance(nn, NNDescent):
+            #print("NND Neighbors")
             if radius is not None:
                 raise ValueError("NNDescent does not support radius search")
 
@@ -307,8 +452,10 @@ class RedundancyWorkspace:
                 # Neighbor accuracy is critical for the performance.
                 # For higher accuracy, use more neighbors
                 new_k = max(k, 200)
+                #new_k = 200
                 candidates = nn.query([point], k=new_k, epsilon=0.75)[0][0]
-                return candidates[:k]
+                
+                return candidates[:new_k]
 
     def visualize_workspace_graph(self):
         """Visualize the workspace graph"""

@@ -7,9 +7,12 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
+# Add the parent directory to the Python path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from grr.utils import rotvec_to_quat, quat_to_matrix, interpolate_quat
 from grr.json_utils import load_json
-from grr.robot import KinematicChain, Kinova
+from grr.robot import KinematicChain, Kinova, UR10
 
 from experiment.utils import random_unit_vector
 
